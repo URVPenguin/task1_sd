@@ -1,14 +1,27 @@
-class InsultFilterBase:
+from abc import ABC, abstractmethod
+import queue
+from collections import deque
+
+
+class InsultFilterBase(ABC):
     def __init__(self):
-        self.insults = ["idiota", "tonto", "estúpido"]
-        self.results = []
+        self.results = deque(maxlen=100)
+        self.insults = {"stupid", "idiot", "dumb", "moron", "jerk"}
 
-    def filter_text(self, text):
-        for insult in self.insults:
-            if insult in text.lower():
-                text = text.replace(insult, "CENSORED")
-        self.results.append(text)
-        return text
+    @abstractmethod
+    def process_queue(self):
+        pass
 
+    @abstractmethod
+    def submit_text(self, text):
+        """Add text to be filtered"""
+        pass
+
+    @abstractmethod
     def get_results(self):
-        return self.results
+        """Get all filtered results"""
+        pass
+
+    @abstractmethod
+    def filter_text(self, text):
+        pass

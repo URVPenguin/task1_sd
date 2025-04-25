@@ -1,11 +1,17 @@
 import xmlrpc.client
 
-proxy = xmlrpc.client.ServerProxy("http://localhost:8000")
+class InsultFilterXMLRPClient:
+    def __init__(self, server_url='http://localhost:8000'):
+        self.server = xmlrpc.client.ServerProxy(server_url)
 
-def send_text_to_queue(text):
-    proxy.add_task(text)
+    def submit_text(self, text):
+        """Submit text for filtering"""
+        return self.server.submit_text(text)
 
-send_text_to_queue("Eres un estúpido genio")
+    def get_results(self):
+        """Get filtered results"""
+        return len(self.server.get_results())
 
-print(proxy.process_next_task())
-print(proxy.get_results())
+    def get_queue_status(self):
+        """Check how many items are in the queue"""
+        return self.server.get_queue_size()
