@@ -61,7 +61,7 @@ class InsultServiceXMLRPC(InsultServiceBase):
                     insult = random.choice(self.insults)
                     self.notify_subscribers(insult)
 
-        self.broadcaster_thread = Thread(target=broadcaster_loop, daemon=False)
+        self.broadcaster_thread = Thread(target=broadcaster_loop, daemon=True)
         self.broadcaster_thread.start()
 
     def stop_broadcaster(self):

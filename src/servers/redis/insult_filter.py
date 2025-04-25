@@ -21,7 +21,6 @@ class InsultFilterRedis(InsultFilterBase):
         """Process a client request"""
         if request_data['action'] == 'submit_text':
             try:
-                print(request_data['text'])
                 self.submit_text(request_data['text'])
                 return {'status': 'success'}
             except Exception as e:
@@ -49,7 +48,7 @@ class InsultFilterRedis(InsultFilterBase):
         self.redis.rpush(self.work_queue, json.dumps(text))
 
     def get_results(self):
-        return self.redis.lrange('insult_filter:results', 0, -1)
+        return self.redis.lrange(self.results, 0, -1)
 
 
 def run_server(host="127.0.0.1", port=6379):
