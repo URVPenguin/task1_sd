@@ -22,6 +22,7 @@ class InsultFilterBase(ABC):
         """Get all filtered results"""
         pass
 
-    @abstractmethod
     def filter_text(self, text):
-        pass
+        for insult in self.insults:
+            text = text.replace(insult, "CENSORED")
+        return text

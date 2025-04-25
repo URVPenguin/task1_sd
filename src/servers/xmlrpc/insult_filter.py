@@ -25,12 +25,6 @@ class InsultFilterXMLRPCServer(InsultFilterBase):
             except Exception as e:
                 print(f"Error processing text: {e}")
 
-    def filter_text(self, text):
-        """Replace insults with CENSORED"""
-        for insult in self.insults:
-            text = text.replace(insult, "CENSORED")
-        return text
-
     def submit_text(self, text):
         """Add text to the processing queue"""
         self.work_queue.put(text)
@@ -40,12 +34,8 @@ class InsultFilterXMLRPCServer(InsultFilterBase):
         """Retrieve filtered results"""
         return list(self.results)
 
-    def get_queue_size(self):
-        """Get current queue size"""
-        return self.work_queue.qsize()
 
-
-def run_server(host='localhost', port=8000):
+def run_server(host='127.0.0.1', port=8000):
     server = SimpleXMLRPCServer((host, port), allow_none=True)
     server.register_instance(InsultFilterXMLRPCServer())
     print(f"InsultFilterXMLRPCServer running on {host}:{port}")

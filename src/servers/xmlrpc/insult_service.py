@@ -81,7 +81,7 @@ class InsultServiceXMLRPC(InsultServiceBase):
                 self.subscribers.remove(subscriber_url)
 
 
-def run_server(host: str = "localhost", port: int = 8000):
+def run_server(host: str = "127.0.0.1", port: int = 8000):
     server = SimpleXMLRPCServer((host, port))
     service = InsultServiceXMLRPC()
     server.register_instance(service)
