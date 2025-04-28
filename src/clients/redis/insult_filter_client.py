@@ -47,6 +47,6 @@ if __name__ == '__main__':
     client = InsultFilterRedisClient()
 
     for i in range(10):
-        print(client.submit_text("1 Hello world idiot"))
+        print(client.submit_text(f"1 Hello world idiot {i}"))
         print(client.get_results())
         sleep(1)

@@ -48,7 +48,7 @@ class InsultFilterRedis(InsultFilterBase):
         self.redis.rpush(self.work_queue, json.dumps(text))
 
     def get_results(self):
-        return self.redis.lrange(self.results, 0, -1)
+        return self.redis.lrange(self.results, -100, -1)
 
 
 def run_server(host="127.0.0.1", port=6379):

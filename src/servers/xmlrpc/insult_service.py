@@ -4,7 +4,7 @@ import random
 from typing import List
 from xmlrpc.client import ServerProxy
 from servers.base.insult_service_base import InsultServiceBase
-
+from servers.xmlrpc.insult_filter import RequestHandler
 
 class InsultServiceXMLRPC(InsultServiceBase):
     def __init__(self):
@@ -82,7 +82,7 @@ class InsultServiceXMLRPC(InsultServiceBase):
 
 
 def run_server(host: str = "127.0.0.1", port: int = 8000):
-    server = SimpleXMLRPCServer((host, port))
+    server = SimpleXMLRPCServer((host, port), requestHandler=RequestHandler, allow_none=True, logRequests=False)
     service = InsultServiceXMLRPC()
     server.register_instance(service)
     print(f"InsultServiceXMLRPC running on {host}:{port}")

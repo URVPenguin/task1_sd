@@ -11,11 +11,22 @@ def sync_response(pubsub):
             pubsub.unsubscribe()
             return json.loads(message['data'])
 
-class InsultFilterRedisClient:
+class InsultServiceRedisClient:
     def __init__(self, host='127.0.0.1', port=6379):
         self.redis = redis.StrictRedis(host=host, port=port, decode_responses=True)
         self.request_channel = 'insult_service:requests'
         self.notify_channel = 'insult_service:notify'
+
+        def check_notifications():
+            pubsub = self.redis.pubsub()
+            pubsub.subscribe(self.notify_channel)
+
+            for message in pubsub.listen():
+                if message["type"] == "message":
+                    print(message["data"])
+
+        thread = threading.Thread(target=check_notifications, daemon=True)
+        thread.start()
 
     def add_insult(self, insult):
         """Send text to be filtered"""
@@ -46,24 +57,13 @@ class InsultFilterRedisClient:
         return sync_response(pubsub)
 
 if __name__ == '__main__':
-    client = InsultFilterRedisClient()
+    client = InsultServiceRedisClient()
 
-    pubsub = client.redis.pubsub()
-    pubsub.subscribe(client.notify_channel)
+    print(client.add_insult("Idiot"))
+    print(client.add_insult("Tonto"))
+    print(client.add_insult("Burru"))
+    print(client.add_insult("Capullu"))
+    print(client.add_insult("Retresat"))
+    print(client.get_all_insults())
 
-    def check_notifications():
-        for message in pubsub.listen():
-            if message["type"] == "message":
-                print(message["data"])
-
-    thread = threading.Thread(target=check_notifications, daemon=True)
-    thread.start()
-
-    for i in range(10):
-        print(client.add_insult("Idiot"))
-        print(client.add_insult("Tonto"))
-        print(client.add_insult("Burru"))
-        print(client.add_insult("Capullu"))
-        print(client.add_insult("Retresat"))
-        print(client.get_all_insults())
-        sleep(1)
+    sleep(20)
