@@ -49,12 +49,10 @@ class InsultServicePyro(InsultServiceBase):
     def notify_subscribers(self, insult: str):
         for subscriber in self.subscribers:
             try:
-                print(f"Entra {subscriber}")
                 Pyro4.Proxy(subscriber).notify(insult)
             except Exception:
                 print(f"Communication error to => {subscriber}")
                 self.unregister_subscriber(subscriber)
-                print(self.subscribers)
 
 def run_server(ns="pyro.insult_service"):
     daemon = Pyro4.Daemon()
