@@ -5,24 +5,8 @@ from time import sleep
 
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Manager
-
-from clients.pyro.insult_service_client import InsultServicePyroClient
-from clients.redis.insult_service_client import InsultServiceRedisClient
-from clients.xmlrpc.insult_service_client import InsultServiceXMLRPCClient
-from clients.pyro.insult_filter_client import InsultFilterPyroClient
-from clients.redis.insult_filter_client import InsultFilterRedisClient
-from clients.xmlrpc.insult_filter_client import InsultFilterXMLRPClient
-from clients.rabbitmq.insult_filter_client import InsultFilterRabbitMQClient
-from clients.rabbitmq.insult_service_client import InsultServiceRabbitMQClient
-from servers.xmlrpc.insult_service import run_server as serv_xmlrpc_run_server
-from servers.redis.insult_service import run_server as serv_redis_run_server
-from servers.pyro.insult_service import run_server as serv_pyro_run_server
-from servers.rabbitmq.insult_service import run_server as serv_rabbitmq_run_server
-from servers.xmlrpc.insult_filter import run_server as filt_xmlrpc_run_server
-from servers.redis.insult_filter import run_server as filt_redis_run_server
-from servers.pyro.insult_filter import run_server as filt_pyro_run_server
-from servers.rabbitmq.insult_filter import run_server as filt_rabbitmq_run_server
-
+from server_client import server_client
+from functions import get_free_port, filter_work, service_work
 
 def plot_results(client_class, client_counts, results):
     """Genera gráficos con los resultados"""
@@ -49,28 +33,6 @@ def plot_results(client_class, client_counts, results):
     path =  path / "plots/single_node_tests/insult_filter" if 'InsultFilter' in client_class.__name__ else path / "plots/single_node_tests/insult_service"
     Path(path).mkdir(parents=True, exist_ok=True)
     plt.savefig(f"{path}/single_node_test_{client_class.__name__}.png")
-
-def get_free_port():
-    """Encuentra y devuelve un puerto TCP disponible."""
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.bind(('0.0.0.0', 0))
-        s.listen(1)
-        port = s.getsockname()[1]
-    return port
-
-def service_work(client, requests_per_client):
-    for i in range(requests_per_client):
-        if i % 2 == 0:
-            client.add_insult(f"insult{i}")
-        else:
-            client.get_all_insults()
-
-def filter_work(client, requests_per_client):
-    for i in range(requests_per_client):
-        if i % 2 == 0:
-            client.submit_text("insult idiot retardet")
-        else:
-            client.get_results()
 
 def client_work(latencies, client_class, requests_per_client):
     try:
@@ -136,26 +98,7 @@ class SingleNodeStressTester:
         plot_results(client_class, client_counts, results)
 
 if __name__ == "__main__":
-    clients = {
-        "xmlrpc": {
-            "targets": [serv_xmlrpc_run_server, filt_xmlrpc_run_server],
-            "clients": [InsultServiceXMLRPCClient, InsultFilterXMLRPClient]
-        },
-        "redis": {
-            "targets": [serv_redis_run_server, filt_redis_run_server],
-            "clients": [InsultServiceRedisClient, InsultFilterRedisClient]
-        },
-        "pyro": {
-            "targets": [serv_pyro_run_server, filt_pyro_run_server],
-            "clients": [InsultServicePyroClient, InsultFilterPyroClient]
-        },
-        "rabbitMQ": {
-            "targets": [serv_rabbitmq_run_server, filt_rabbitmq_run_server],
-            "clients": [InsultServiceRabbitMQClient, InsultFilterRabbitMQClient]
-        }
-    }
-
-    for key, data in clients.items():
+    for key, data in server_client.items():
         for idx, client in enumerate(data['clients']):
             print(f"Testing {key} using {client.__name__} (single node) ...")
             tester = SingleNodeStressTester(Process(target=data['targets'][idx]))
