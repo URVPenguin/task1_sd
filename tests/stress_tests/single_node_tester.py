@@ -1,38 +1,12 @@
-import socket
-from pathlib import Path
+import threading
 import time
+from collections import defaultdict
 from time import sleep
 
-import matplotlib.pyplot as plt
 from multiprocessing import Process, Manager
 from server_client import server_client
-from functions import get_free_port, filter_work, service_work
+from functions import get_free_port, filter_work, service_work, measure_resources, plot_resources, plot_results, monitor_resources
 
-def plot_results(client_class, client_counts, results):
-    """Genera gráficos con los resultados"""
-    plt.figure(figsize=(15, 5))
-
-    # Throughput
-    plt.subplot(1, 3, 1)
-    plt.plot(client_counts, results['throughput'], 'b-o')
-    plt.title("Throughput vs Clients")
-    plt.xlabel("Number of Clients")
-    plt.ylabel("Requests per Second")
-    plt.grid(True)
-
-    # Latency
-    plt.subplot(1, 3, 2)
-    plt.plot(client_counts, results['latency'], 'r-o')
-    plt.title("Latency vs Clients")
-    plt.xlabel("Number of Clients")
-    plt.ylabel("Average Latency (s)")
-    plt.grid(True)
-
-    plt.tight_layout()
-    path = Path(__file__).parent.parent.parent
-    path =  path / "plots/single_node_tests/insult_filter" if 'InsultFilter' in client_class.__name__ else path / "plots/single_node_tests/insult_service"
-    Path(path).mkdir(parents=True, exist_ok=True)
-    plt.savefig(f"{path}/single_node_test_{client_class.__name__}.png")
 
 def client_work(latencies, client_class, requests_per_client):
     try:
@@ -68,12 +42,22 @@ class SingleNodeStressTester:
 
         client_counts = range(0, max_clients+1, 10)
         results = { 'throughput': [], 'latency': []}
+        resource_data = {
+            'cpu': [], 'ram': [],
+            'disk_read': [], 'disk_write': [],
+            'net_sent': [], 'net_recv': []
+        }
 
         for client_count in client_counts:
             print(f"\nTesting with {client_count} clients...")
 
             manager = Manager()
             latencies = manager.list()
+
+            measurements = defaultdict(list)
+            measure_thread = threading.Thread(target=monitor_resources, args=[measurements], daemon=True)
+            measure_thread.do_run = True
+            measure_thread.start()
 
             processes = []
             for i in range(client_count):
@@ -83,6 +67,16 @@ class SingleNodeStressTester:
 
             for p in processes:
                 p.join()
+
+            measure_thread.do_run = False
+            measure_thread.join()
+
+            resource_data['cpu'].append(sum(measurements['cpu']) / len(measurements['cpu']) if len(measurements['cpu']) > 0 else 0)
+            resource_data['ram'].append(sum(measurements['ram']) / len(measurements['ram']) if len(measurements['ram']) > 0 else 0)
+            resource_data['disk_read'].append(sum(measurements['disk_read']) / len(measurements['disk_read']) if len(measurements['disk_read']) > 0 else 0)
+            resource_data['disk_write'].append(sum(measurements['disk_write']) / len(measurements['disk_write']) if len(measurements['disk_write']) > 0 else 0)
+            resource_data['net_sent'].append(sum(measurements['net_sent']) / len(measurements['net_sent']) if len(measurements['net_sent']) > 0 else 0)
+            resource_data['net_recv'].append(sum(measurements['net_recv']) / len(measurements['net_recv']) if len(measurements['net_recv']) > 0 else 0)
 
             latencies = list(latencies)
             throughput = len(latencies) / sum(latencies) if latencies else 0
@@ -96,6 +90,7 @@ class SingleNodeStressTester:
 
         self.stop_server()
         plot_results(client_class, client_counts, results)
+        plot_resources(client_class, client_counts, resource_data)
 
 if __name__ == "__main__":
     for key, data in server_client.items():
