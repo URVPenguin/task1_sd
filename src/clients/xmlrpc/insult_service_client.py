@@ -3,9 +3,9 @@ from xmlrpc.client import ServerProxy
 import threading
 
 class InsultServiceXMLRPCClient:
-    def __init__(self, server_url='http://127.0.0.1:8000', port = 8001):
-        self.server = ServerProxy(server_url)
-        self.t = self.listen(port)
+    def __init__(self, host='127.0.0.1', server_port = 8000, cli_port = 8001):
+        self.server = ServerProxy("http://{}:{}".format(host, server_port))
+        self.t = self.listen(cli_port)
 
     def listen(self, client_port):
         """Inicia el servidor RPC para recibir insultos"""
@@ -21,7 +21,7 @@ class InsultServiceXMLRPCClient:
         t.do_run = True
         t.start()
 
-        callback_url = f"http://localhost:{client_port}"
+        callback_url = f"http://127.0.0.1:{client_port}"
         if self.server.register_subscriber(callback_url):
             print("Successfully registered as subscriber")
         else:

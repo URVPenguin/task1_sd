@@ -1,10 +1,11 @@
+import json
 import time
 import uuid
 import pika
 
 class InsultFilterRabbitMQClient:
-    def __init__(self, host = "127.0.0.1"):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+    def __init__(self, host = "127.0.0.1", port = 5672):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, port))
         self.channel = self.connection.channel()
         self.callback_queue = self.channel.queue_declare(queue='', exclusive=True).method.queue
         self.channel.basic_consume(queue=self.callback_queue, on_message_callback=self.on_response, auto_ack=True)
@@ -21,7 +22,7 @@ class InsultFilterRabbitMQClient:
 
     def get_results(self):
         """Obtiene todos los textos filtrados acumulados"""
-        return self.call_rpc_method('insult_filter', 'get_results')
+        return json.loads(self.call_rpc_method('insult_filter', 'get_results'))
 
     def call_rpc_method(self, exchange, routing_key, body=""):
         """Realiza una llamada RPC genérica"""

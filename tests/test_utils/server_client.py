@@ -14,22 +14,35 @@ from servers.xmlrpc.insult_filter import run_server as filt_xmlrpc_run_server
 from servers.redis.insult_filter import run_server as filt_redis_run_server
 from servers.pyro.insult_filter import run_server as filt_pyro_run_server
 from servers.rabbitmq.insult_filter import run_server as filt_rabbitmq_run_server
+from test_utils.functions import get_free_port
 
 server_client = {
     "xmlrpc": {
         "targets": [serv_xmlrpc_run_server, filt_xmlrpc_run_server],
-        "clients": [InsultServiceXMLRPCClient, InsultFilterXMLRPClient]
+        "clients": [InsultServiceXMLRPCClient, InsultFilterXMLRPClient],
+        "servers": [{'host': "127.0.0.1", 'port': get_free_port()},
+                    {'host': "127.0.0.1", 'port': get_free_port()},
+                    {'host': "127.0.0.1", 'port': get_free_port()}],
     },
     "redis": {
         "targets": [serv_redis_run_server, filt_redis_run_server],
-        "clients": [InsultServiceRedisClient, InsultFilterRedisClient]
+        "clients": [InsultServiceRedisClient, InsultFilterRedisClient],
+        "servers": [{'host': "127.0.0.1", 'port': 6379, 'container_name': 'redis1'},
+                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'redis2'},
+                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'redis3'}],
     },
     "pyro": {
         "targets": [serv_pyro_run_server, filt_pyro_run_server],
-        "clients": [InsultServicePyroClient, InsultFilterPyroClient]
+        "clients": [InsultServicePyroClient, InsultFilterPyroClient],
+        "servers": [{'host': "pyro.host.1", 'container_name': 'pyro'},
+                    {'host': "pyro.host.2", 'container_name': 'pyro'},
+                    {'host': "pyro.host.3", 'container_name': 'pyro'}]
     },
     "rabbitMQ": {
         "targets": [serv_rabbitmq_run_server, filt_rabbitmq_run_server],
-        "clients": [InsultServiceRabbitMQClient, InsultFilterRabbitMQClient]
+        "clients": [InsultServiceRabbitMQClient, InsultFilterRabbitMQClient],
+        "servers": [{'host': "127.0.0.1", 'port': 5672, 'container_name': 'rabbitmq1'},
+                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'rabbitmq2'},
+                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'rabbitmq3'}],
     }
 }

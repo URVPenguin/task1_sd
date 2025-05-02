@@ -6,8 +6,8 @@ from time import sleep
 import pika
 
 class InsultServiceRabbitMQClient:
-    def __init__(self, host = "127.0.0.1"):
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+    def __init__(self, host = "127.0.0.1", port=5672):
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, port))
         self.channel = self.connection.channel()
 
         self.channel.exchange_declare(exchange='insult_broadcast', exchange_type='fanout')

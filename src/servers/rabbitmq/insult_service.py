@@ -2,18 +2,15 @@ import json
 import random
 import threading
 import time
-from multiprocessing import Process
-from time import sleep
-
 import pika
 
 from servers.base.insult_service_base import InsultServiceBase
 
 class InsultServiceRabbitMQ(InsultServiceBase):
-    def __init__(self, host):
+    def __init__(self, host, port):
         super().__init__()
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host))
-        self.broadcast_connection = pika.BlockingConnection(pika.ConnectionParameters(host))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, port))
+        self.broadcast_connection = pika.BlockingConnection(pika.ConnectionParameters(host, port))
         self.channel = self.connection.channel()
         self.broadcast_channel = self.broadcast_connection.channel()
 
@@ -93,8 +90,8 @@ class InsultServiceRabbitMQ(InsultServiceBase):
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-def run_server(host="127.0.0.1"):
-    server = InsultServiceRabbitMQ(host)
+def run_server(host="127.0.0.1", port=5672):
+    server = InsultServiceRabbitMQ(host, port)
     print("Running InsultServiceRabbitMQ server")
     server.channel.start_consuming()
 

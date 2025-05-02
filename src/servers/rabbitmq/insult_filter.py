@@ -1,15 +1,12 @@
-import threading
+import json
 from collections import deque
 import pika
 from servers.base.insult_filter_base import InsultFilterBase
 
 class InsultFilterRabbitMQ(InsultFilterBase):
-    def __init__(self, host):
+    def __init__(self, host, port):
         super().__init__()
-        self.connection = pika.BlockingConnection(pika.ConnectionParameters(
-                host=host,
-                connection_attempts=3,
-                channel_max=500))
+        self.connection = pika.BlockingConnection(pika.ConnectionParameters(host, port))
         self.filtered_results = deque(maxlen=100)
         self.channel = self.connection.channel()
 
@@ -53,8 +50,7 @@ class InsultFilterRabbitMQ(InsultFilterBase):
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
     def handle_get_results(self, ch, method, props, body):
-        results = self.get_results()
-        response = "\n".join(results)
+        response = json.dumps(self.get_results())
 
         ch.basic_publish(
             exchange='',
@@ -64,8 +60,8 @@ class InsultFilterRabbitMQ(InsultFilterBase):
         )
         ch.basic_ack(delivery_tag=method.delivery_tag)
 
-def run_server(host="127.0.0.1"):
-    server = InsultFilterRabbitMQ(host)
+def run_server(host="127.0.0.1", port=5672):
+    server = InsultFilterRabbitMQ(host, port)
     print("Running InsultFilterRabbitMQ server")
     server.channel.start_consuming()
 
