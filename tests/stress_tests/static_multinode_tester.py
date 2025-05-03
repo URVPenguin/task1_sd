@@ -2,39 +2,11 @@ import time
 from itertools import cycle
 from multiprocessing import Process, Manager
 from pathlib import Path
-
-from test_utils.docker_container_manager import DockerContainerManager
-from test_utils.server_client import server_client
-from test_utils.functions import get_free_port, filter_work, service_work
-
-
-def client_work(latencies, client_class, requests_per_client, server):
-    try:
-        #TODO: Modificar client XMLRPC per passar ports i host
-        client = None
-        if client_class.__name__ == 'InsultServiceXMLRPCClient':
-            client = client_class(server['host'], server['port'], get_free_port())
-        elif 'port' not in server:
-            client = client_class(server['host'])
-        else:
-            client = client_class(server['host'], server['port'])
-
-        start = time.perf_counter()
-        if 'InsultFilter' in client_class.__name__:
-            filter_work(client, requests_per_client)
-        else:
-            service_work(client, requests_per_client)
-        latencies.append(time.perf_counter() - start)
-
-        #if 'InsultService' in client_class.__name__:
-            #sleep(5) #wait for broadcasting
-    except Exception as e:
-        print(f"Error conn {e}")
-
-
 import matplotlib.pyplot as plt
 
-
+from stress_tests.test_utils.docker_container_manager import DockerContainerManager
+from stress_tests.test_utils.server_client import server_client
+from stress_tests.test_utils.functions import get_free_port, filter_work, service_work
 
 
 class StaticMultiNodeStressTester:
@@ -87,7 +59,7 @@ class StaticMultiNodeStressTester:
                 start_time = time.perf_counter()
                 processes = []
                 for _ in range(client_count):
-                    p = Process(target=client_work, args=([latencies, self.client_class,
+                    p = Process(target=self.client_work, args=([latencies, self.client_class,
                                                            requests_per_client, self.get_next_server()]))
                     processes.append(p)
                     p.start()
@@ -113,8 +85,28 @@ class StaticMultiNodeStressTester:
             self.stop_servers()
         self.plot_results(client_counts, results)
 
+    def client_work(self, latencies, client_class, requests_per_client, server):
+        try:
+            # TODO: Modificar client XMLRPC per passar ports i host
+            client = None
+            if client_class.__name__ == 'InsultServiceXMLRPCClient':
+                client = client_class(server['host'], server['port'], get_free_port())
+            elif 'port' not in server:
+                client = client_class(server['host'])
+            else:
+                client = client_class(server['host'], server['port'])
+
+            start = time.perf_counter()
+            if 'InsultFilter' in client_class.__name__:
+                filter_work(client, requests_per_client)
+            else:
+                service_work(client, requests_per_client)
+            latencies.append(time.perf_counter() - start)
+        except Exception as e:
+            print(f"Error conn {e}")
+
     def plot_results(self, client_counts, results):
-        plt.figure(figsize=(15, 10))
+        plt.figure(figsize=(15, 15))
 
         # Gráfico de Throughput
         plt.subplot(2, 2, 1)
@@ -145,6 +137,31 @@ class StaticMultiNodeStressTester:
         plt.ylabel("Tiempo (segundos)")
         plt.legend()
         plt.grid(True)
+
+        plt.subplot(2, 2, 4)
+        if len(results) > 1:
+            base_time = results[0]['total_time']
+            for servers, data in enumerate(results[1:], start=1):  # Empezamos desde el segundo servidor
+                speedup = [single / multi for single, multi in zip(base_time, data['total_time'])]
+                line = plt.plot(client_counts, speedup, 'o-', label=f'Speedup {servers + 1} servidores')
+                for x, y in zip(client_counts, speedup):
+                    plt.annotate(
+                        f"{y:.2f}x",
+                        (x, y),
+                        textcoords="offset points",
+                        xytext=(0, 10),
+                        ha='center',
+                        va='bottom',
+                        color=line[0].get_color(),
+                        bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.2'),
+                        fontsize=8
+                    )
+            plt.title("Speedup vs Número de Clientes")
+            plt.xlabel("Clientes")
+            plt.ylabel("Speedup (Tiempo 1 servidor / Tiempo N servidores)")
+            plt.axhline(y=1, color='gray', linestyle='--')  # Línea de referencia
+            plt.legend()
+            plt.grid(True)
 
         plt.tight_layout()
         path = Path(__file__).parent.parent.parent

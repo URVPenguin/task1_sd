@@ -2,7 +2,9 @@ import docker
 import time
 from typing import Optional
 
-from test_utils.functions import get_free_port
+from docker.models.containers import Container
+
+from stress_tests.test_utils.functions import get_free_port
 
 
 class DockerContainerManager:
@@ -14,16 +16,30 @@ class DockerContainerManager:
             container_name: str = "rabbitmq",
             port: Optional[int] = 5672,
             host: str = "127.0.0.1",
-            restart_existing: bool = True
-    ) -> bool:
+            restart_existing: bool = True,
+            environment: Optional[dict] = None,
+            hostname: Optional[str] = None,
+            network: Optional[str] = None
+    ) -> dict:
 
-        return self.run_container(
+        mgmt_port = get_free_port()
+        container = self.run_container(
             image="rabbitmq:management",
             container_name=container_name,
-            ports={"5672/tcp": (host, port), "15672/tcp": (host, get_free_port())},
-            environment={},
-            restart_existing=restart_existing
+            ports={"5672/tcp": (host, port), "15672/tcp": (host, mgmt_port)},
+            environment=environment,
+            restart_existing=restart_existing,
+            hostname=hostname,
+            network=network
         )
+
+        return {
+            "host": host,
+            "port": port,
+            "mgmt_port": mgmt_port,
+            "container_id": container,
+            "hostname": hostname,
+        }
 
     def run_redis(
             self,
@@ -31,7 +47,7 @@ class DockerContainerManager:
             port: Optional[int] = 6379,
             host: str = "127.0.0.1",
             restart_existing: bool = True
-    ) -> bool:
+    ) -> Container:
 
         return self.run_container(
             image="redis:latest",
@@ -47,9 +63,9 @@ class DockerContainerManager:
             port: Optional[int] = 9090,
             host: str = "127.0.0.1",
             restart_existing: bool = True
-    ) -> bool:
+    ) -> Container:
 
-        return self.run_container(
+        container = self.run_container(
             image="python:3-slim",
             container_name=container_name,
             ports={"9090/tcp": (host, port)},
@@ -59,6 +75,8 @@ class DockerContainerManager:
             tty=True
         )
 
+        return container
+
     def run_container(
             self,
             image: str,
@@ -67,24 +85,26 @@ class DockerContainerManager:
             environment: dict,
             restart_existing: bool,
             command: Optional[str] = None,
-            tty: bool = False
-    ) -> bool:
+            tty: bool = False,
+            hostname: Optional[str] = None,
+            network: Optional[str] = None
+    ) -> Container or None:
         try:
             try:
                 container = self.client.containers.get(container_name)
 
                 if container.status == "running":
                     print(f"El contenedor {container_name} ya está en ejecución.")
-                    return True
+                    return container
 
                 if restart_existing:
                     print(f"Reiniciando contenedor existente: {container_name}")
                     container.start()
                     time.sleep(2)  # Esperar un poco para que el servicio esté listo
-                    return True
+                    return container
                 else:
                     print(f"El contenedor {container_name} existe pero no está en ejecución.")
-                    return False
+                    return container
 
             except docker.errors.NotFound:
                 pass  # El contenedor no existe, continuar con la creación
@@ -96,7 +116,7 @@ class DockerContainerManager:
             }
 
             print(f"Iniciando nuevo contenedor {container_name} con imagen {image}...")
-            self.client.containers.run(
+            container = self.client.containers.run(
                 image=image,
                 name=container_name,
                 ports=port_bindings,
@@ -105,15 +125,16 @@ class DockerContainerManager:
                 detach=True,
                 remove=True,
                 tty=tty,
-                stdin_open=tty
+                stdin_open=tty,
+                hostname=hostname,
+                network=network
             )
 
             time.sleep(2)  # Esperar un poco para que el servicio esté listo
-            return True
+            return container
 
         except docker.errors.DockerException as e:
             print(f"Error al manejar el contenedor {container_name}: {str(e)}")
-            return False
 
     def stop_container(self, container_name: str) -> bool:
         """Detiene un contenedor por nombre"""
@@ -150,3 +171,35 @@ class DockerContainerManager:
             return container.status == "running"
         except docker.errors.NotFound:
             return False
+
+    def exec_commands(self, container_name: str, commands: list[str]) -> bool:
+
+        try:
+            container = self.client.containers.get(container_name)
+
+            for cmd in commands:
+                print(f"[{container.name}] Ejecutando: {cmd}")
+                exit_code, output = container.exec_run(cmd, tty=True)
+
+                if exit_code != 0:
+                    print(f"❌ Error en {container.name} durante '{cmd}': {output.decode()}")
+                    return False
+
+            print(f"✅ {container.name} correctamente unido al cluster")
+            return True
+        except docker.errors.DockerException:
+            return False
+
+    def create_network(self, network_name):
+        """Crea una red Docker para el cluster."""
+        try:
+            networks = self.client.networks.list(names=[network_name])
+            if not networks:
+                self.client.networks.create(network_name, driver="bridge")
+                print(f"🔹 Red '{network_name}' creada")
+            else:
+                print(f"🔹 La red '{network_name}' ya existe")
+            return True
+        except docker.errors.DockerException as e:
+            print(f"❌ Error al crear la red: {str(e)}")
+            raise

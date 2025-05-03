@@ -14,7 +14,7 @@ from servers.xmlrpc.insult_filter import run_server as filt_xmlrpc_run_server
 from servers.redis.insult_filter import run_server as filt_redis_run_server
 from servers.pyro.insult_filter import run_server as filt_pyro_run_server
 from servers.rabbitmq.insult_filter import run_server as filt_rabbitmq_run_server
-from test_utils.functions import get_free_port
+from stress_tests.test_utils.functions import get_free_port
 
 server_client = {
     "xmlrpc": {

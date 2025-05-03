@@ -7,9 +7,9 @@ from pathlib import Path
 import psutil
 from matplotlib import pyplot as plt
 
-from test_utils.docker_container_manager import DockerContainerManager
-from test_utils.server_client import server_client
-from test_utils.functions import get_free_port, filter_work, service_work
+from stress_tests.test_utils.docker_container_manager import DockerContainerManager
+from stress_tests.test_utils.server_client import server_client
+from stress_tests.test_utils.functions import get_free_port, filter_work, service_work
 
 class SingleNodeStressTester:
     def __init__(self, process, client_class):
