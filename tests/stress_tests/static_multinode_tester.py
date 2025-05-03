@@ -87,7 +87,6 @@ class StaticMultiNodeStressTester:
 
     def client_work(self, latencies, client_class, requests_per_client, server):
         try:
-            # TODO: Modificar client XMLRPC per passar ports i host
             client = None
             if client_class.__name__ == 'InsultServiceXMLRPCClient':
                 client = client_class(server['host'], server['port'], get_free_port())
