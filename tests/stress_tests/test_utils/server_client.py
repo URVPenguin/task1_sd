@@ -27,22 +27,18 @@ server_client = {
     "redis": {
         "targets": [serv_redis_run_server, filt_redis_run_server],
         "clients": [InsultServiceRedisClient, InsultFilterRedisClient],
-        "servers": [{'host': "127.0.0.1", 'port': 6379, 'container_name': 'redis1'},
-                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'redis2'},
-                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'redis3'}],
+        "servers": [{'host': "127.0.0.1", 'port': 6379, 'container_name': 'redis'}],
     },
     "pyro": {
         "targets": [serv_pyro_run_server, filt_pyro_run_server],
         "clients": [InsultServicePyroClient, InsultFilterPyroClient],
-        "servers": [{'host': "pyro.host.1", 'container_name': 'pyro'},
-                    {'host': "pyro.host.2", 'container_name': 'pyro'},
-                    {'host': "pyro.host.3", 'container_name': 'pyro'}]
+        "servers": [{'host': "pyro.server.1", 'container_name': 'pyro'},
+                    {'host': "pyro.server.2"},
+                    {'host': "pyro.server.3"}]
     },
     "rabbitMQ": {
         "targets": [serv_rabbitmq_run_server, filt_rabbitmq_run_server],
         "clients": [InsultServiceRabbitMQClient, InsultFilterRabbitMQClient],
-        "servers": [{'host': "127.0.0.1", 'port': 5672, 'container_name': 'rabbitmq1'},
-                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'rabbitmq2'},
-                    {'host': "127.0.0.1", 'port': get_free_port(), 'container_name': 'rabbitmq3'}],
+        "servers": [{'host': "127.0.0.1", 'port': 5672, 'container_name': 'rabbitmq'}],
     }
 }

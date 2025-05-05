@@ -15,6 +15,7 @@ class DockerContainerManager:
             self,
             container_name: str = "rabbitmq",
             port: Optional[int] = 5672,
+            mgmt_port: Optional[int] = None,
             host: str = "127.0.0.1",
             restart_existing: bool = True,
             environment: Optional[dict] = None,
@@ -22,7 +23,9 @@ class DockerContainerManager:
             network: Optional[str] = None
     ) -> dict:
 
-        mgmt_port = get_free_port()
+        if mgmt_port is None:
+            mgmt_port = get_free_port()
+
         container = self.run_container(
             image="rabbitmq:management",
             container_name=container_name,
@@ -84,7 +87,7 @@ class DockerContainerManager:
             ports: dict,
             environment: dict,
             restart_existing: bool,
-            command: Optional[str] = None,
+            command: Optional[list[str]] = None,
             tty: bool = False,
             hostname: Optional[str] = None,
             network: Optional[str] = None
@@ -189,6 +192,12 @@ class DockerContainerManager:
             return True
         except docker.errors.DockerException:
             return False
+
+    def get_containers(self, filters):
+        return self.client.containers.list(filters=filters)
+
+    def get_container(self, container_name: str):
+        return self.client.containers.get(container_name)
 
     def create_network(self, network_name):
         """Crea una red Docker para el cluster."""

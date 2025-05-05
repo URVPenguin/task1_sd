@@ -20,7 +20,10 @@ class StaticMultiNodeStressTester:
     def start_servers(self, servers):
         """Inicia los servidores en un proceso separado"""
         for server in range(servers):
-            data = self.servers_data[server]
+            data = self.servers_data[0]
+            if 'XML' in self.client_class.__name__ or 'Pyro' in self.client_class.__name__:
+                data = self.servers_data[server]
+
             proc = Process(target=self.server_target,
                            args=([data['host'], data['port']] if 'port' in data else [data['host']]))
             self.servers_process.append(proc)
@@ -32,6 +35,7 @@ class StaticMultiNodeStressTester:
         """Detiene los servidores"""
         for proc in self.servers_process:
             proc.terminate()
+            proc.join()
 
     def get_next_server(self):
         return next(self.server_cycle)
@@ -101,6 +105,9 @@ class StaticMultiNodeStressTester:
             else:
                 service_work(client, requests_per_client)
             latencies.append(time.perf_counter() - start)
+
+            if hasattr(client, 'close') and callable(getattr(client, 'close')):
+                client.close()
         except Exception as e:
             print(f"Error conn {e}")
 
@@ -174,27 +181,30 @@ def stop_all_containers(servers):
         if 'container_name' in server:
             manager.stop_container(server['container_name'])
 
-def start_all_containers(tecnology, servers):
+def start_container(servers):
     for server in servers:
         if 'container_name' in server:
-            if tecnology == 'redis':
+            if server['container_name'] == 'redis':
                 manager.run_redis(server['container_name'], server['port'], server['host'], True)
-            elif tecnology == 'pyro':
+            elif server['container_name'] == 'pyro':
                 manager.run_pyro_nameserver(container_name=server['container_name'], restart_existing=True)
-            elif tecnology == 'rabbitMQ':
-                manager.run_rabbitmq(server['container_name'], server['port'], server['host'], True)
+            elif server['container_name'] == 'rabbitmq':
+                manager.run_rabbitmq(server['container_name'], port=server['port'],
+                                     host=server['host'], restart_existing=True)
 
 
 if __name__ == "__main__":
     manager = DockerContainerManager()
-
     for key, data in server_client.items():
         stop_all_containers(data['servers'])
-        start_all_containers(key, data['servers'])
+        start_container(data['servers'])
 
+    time.sleep(2)
+
+    for key, data in server_client.items():
         for idx, client in enumerate(data['clients']):
-           tester = StaticMultiNodeStressTester(data['targets'][idx], client, data['servers'])
            print(f"Testing {key} using {client.__name__} (static multinode node) ...")
+           tester = StaticMultiNodeStressTester(data['targets'][idx], client, data['servers'])
            tester.run_stress_test(max_clients=50, requests_per_client=50, servers=3)
 
         stop_all_containers(data['servers'])

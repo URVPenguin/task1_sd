@@ -7,41 +7,38 @@ import uuid
 def sync_response(pubsub):
     for message in pubsub.listen():
         if message['type'] == 'message':
-            pubsub.unsubscribe()
+            pubsub.close()
             return json.loads(message['data'])
 
 class InsultFilterRedisClient:
     def __init__(self, host='127.0.0.1', port=6379):
-        self.redis = redis.StrictRedis(host=host, port=port, decode_responses=True)
-        self.request_channel = 'insult_filter:requests'
+        pool = redis.ConnectionPool(host=host, port=port, db=0, decode_responses=True)
+        self.redis = redis.StrictRedis(connection_pool=pool)
+        self.request_queue = 'insult_filter:requests'
+        self.pubsub = self.redis.pubsub()
+
+    def send_request(self, request_data):
+        response_channel = f"response:{uuid.uuid4()}"
+        self.pubsub.subscribe(response_channel)
+
+        request_data['response_channel'] = response_channel
+        self.redis.rpush(self.request_queue, json.dumps(request_data))
+
+        for message in self.pubsub.listen():
+            if message['type'] == 'message':
+                self.pubsub.unsubscribe(response_channel)
+                return json.loads(message['data'])
 
     def submit_text(self, text):
         """Send text to be filtered"""
-        response_channel = f"response:{uuid.uuid4()}"
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(response_channel)
-        request = {
-            'action': 'submit_text',
-            'text': text,
-            'response_channel': response_channel
-        }
-        self.redis.publish(self.request_channel, json.dumps(request))
-
-        return sync_response(pubsub)
+        return self.send_request({'action': 'submit_text', 'text': text})
 
     def get_results(self):
         """Retrieve filtered results"""
-        response_channel = f"response:{uuid.uuid4()}"
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(response_channel)
+        return self.send_request({'action': 'get_results'})
 
-        request = {
-            'action': 'get_results',
-            'response_channel': response_channel
-        }
-        self.redis.publish(self.request_channel, json.dumps(request))
-
-        return sync_response(pubsub)
+    def close(self):
+        self.redis.close()
 
 if __name__ == '__main__':
     client = InsultFilterRedisClient()

@@ -9,8 +9,9 @@ class InsultServiceRedis(InsultServiceBase):
         super().__init__()
         self.redis = redis.Redis(host=host, port=port, db=0, decode_responses=True)
         self.insults = 'insult_service:insults'
-        self.request_channel = 'insult_service:requests'
+        self.request_queue = 'insult_service:requests'
         self.notify_channel = "insult_service:notify"
+
         self.start_broadcaster()
 
     def process_request(self, request_data):
@@ -52,10 +53,12 @@ class InsultServiceRedis(InsultServiceBase):
     def start_broadcaster(self, interval: int = 5):
         """Start broadcasting random insults periodically"""
         def broadcaster_loop():
+            local_redis = redis.Redis(host="127.0.0.1", port=6379, db=0, decode_responses=True)
             while not Event().wait(interval):
-                insult = self.redis.srandmember(self.insults)
+                insult = local_redis.srandmember(self.insults)
                 if insult:
-                    self.notify_subscribers(insult)
+                    local_redis.publish(self.notify_channel, insult)
+                    #self.notify_subscribers(insult)
 
         broadcaster_thread = Thread(target=broadcaster_loop, daemon=True)
         broadcaster_thread.start()
@@ -70,19 +73,21 @@ class InsultServiceRedis(InsultServiceBase):
 def run_server(host="127.0.0.1", port=6379):
     service = InsultServiceRedis(host, port)
 
-    pubsub = service.redis.pubsub()
-    pubsub.subscribe(service.request_channel)
-
-    for message in pubsub.listen():
-        if message['type'] == 'message':
+    while True:
+        try:
+            request = None
             try:
-                request = json.loads(message['data'])
+                _, request_json = service.redis.blpop([service.request_queue], timeout=0)
+                request = json.loads(request_json)
                 response = service.process_request(request)
-                service.redis.publish(request['response_channel'], json.dumps(response))
+                if 'response_channel' in request:
+                    service.redis.publish(request['response_channel'], json.dumps(response))
             except Exception as e:
                 error_response = {'status': 'error', 'message': str(e)}
                 if 'response_channel' in request:
-                    service.redis.publish(request['response_channel'], json.dumps(error_response))
+                   service.redis.publish(request['response_channel'], json.dumps(error_response))
+        except Exception as e:
+            print(f"Error procesando petición: {e}")
 
 if __name__ == "__main__":
     run_server()

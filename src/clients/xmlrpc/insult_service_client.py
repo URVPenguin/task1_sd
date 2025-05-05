@@ -11,7 +11,7 @@ class InsultServiceXMLRPCClient:
         """Inicia el servidor RPC para recibir insultos"""
 
         def run_client_server():
-            with SimpleXMLRPCServer(("127.0.0.1", client_port), allow_none=True) as server_subs:
+            with SimpleXMLRPCServer(("127.0.0.1", client_port), allow_none=True, logRequests=False) as server_subs:
                 server_subs.register_instance(self)
                 server_subs.timeout = 5
                 while getattr(threading.current_thread(), "do_run", True):

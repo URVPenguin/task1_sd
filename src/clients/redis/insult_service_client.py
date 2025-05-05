@@ -1,60 +1,54 @@
 import threading
+import time
 from time import sleep
 
 import redis
 import json
 import uuid
 
-def sync_response(pubsub):
-    for message in pubsub.listen():
-        if message['type'] == 'message':
-            pubsub.unsubscribe()
-            return json.loads(message['data'])
-
 class InsultServiceRedisClient:
     def __init__(self, host='127.0.0.1', port=6379):
-        self.redis = redis.StrictRedis(host=host, port=port, decode_responses=True)
-        self.request_channel = 'insult_service:requests'
+        pool = redis.ConnectionPool(host=host, port=port, db=0, decode_responses=True)
+        self.redis = redis.StrictRedis(connection_pool=pool)
+        self.request_queue = 'insult_service:requests'
         self.notify_channel = 'insult_service:notify'
+        self.pubsub = self.redis.pubsub()
 
         def check_notifications():
-            pubsub = self.redis.pubsub()
-            pubsub.subscribe(self.notify_channel)
+            try:
+                pubsub = self.redis.pubsub()
+                pubsub.subscribe(self.notify_channel)
 
-            for message in pubsub.listen():
-                if message["type"] == "message":
-                    print(message["data"])
+                for message in pubsub.listen():
+                    if message["type"] == "message":
+                        print(message["data"])
+            except Exception as e:
+                pass
 
-        thread = threading.Thread(target=check_notifications, daemon=True)
-        thread.start()
+        self.thread = threading.Thread(target=check_notifications, daemon=True)
+        self.thread.start()
+
+    def send_request(self, request_data):
+        response_channel = f"response:{uuid.uuid4()}"
+        self.pubsub.subscribe(response_channel)
+
+        request_data['response_channel'] = response_channel
+        self.redis.rpush(self.request_queue, json.dumps(request_data))
+
+        for message in self.pubsub.listen():
+            if message['type'] == 'message':
+                self.pubsub.unsubscribe(response_channel)
+                return json.loads(message['data'])
 
     def add_insult(self, insult):
         """Send text to be filtered"""
-        response_channel = f"response:{uuid.uuid4()}"
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(response_channel)
-        request = {
-            'action': 'add_insult',
-            'text': insult,
-            'response_channel': response_channel
-        }
-        self.redis.publish(self.request_channel, json.dumps(request))
-
-        return sync_response(pubsub)
-
+        return self.send_request({'action': 'add_insult', 'text': insult})
     def get_all_insults(self):
         """Retrieve filtered results"""
-        response_channel = f"response:{uuid.uuid4()}"
-        pubsub = self.redis.pubsub()
-        pubsub.subscribe(response_channel)
+        return self.send_request({'action': 'get_all_insults'})
 
-        request = {
-            'action': 'get_all_insults',
-            'response_channel': response_channel
-        }
-        self.redis.publish(self.request_channel, json.dumps(request))
-
-        return sync_response(pubsub)
+    def close(self):
+        self.pubsub.close()
 
 if __name__ == '__main__':
     client = InsultServiceRedisClient()
@@ -65,5 +59,4 @@ if __name__ == '__main__':
     print(client.add_insult("Capullu"))
     print(client.add_insult("Retresat"))
     print(client.get_all_insults())
-
-    sleep(20)
+    client.close()
