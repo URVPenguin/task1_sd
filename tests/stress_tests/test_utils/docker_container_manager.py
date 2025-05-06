@@ -96,10 +96,9 @@ class DockerContainerManager:
             try:
                 container = self.client.containers.get(container_name)
 
-                if container.status == "running":
+                if container.status == "running" and not restart_existing:
                     print(f"El contenedor {container_name} ya está en ejecución.")
                     return container
-
                 if restart_existing:
                     print(f"Reiniciando contenedor existente: {container_name}")
                     container.start()

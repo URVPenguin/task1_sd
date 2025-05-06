@@ -49,9 +49,13 @@ class InsultFilterRabbitMQClient:
 
         return self.responses.pop(corr_id)
 
+    def close(self):
+        self.connection.close()
+
 if __name__ == "__main__":
     client = InsultFilterRabbitMQClient()
     client.submit_text("Hello world idiot")
     client.submit_text("Hello world stupid")
     time.sleep(1)
     print(client.get_results())
+    client.close()
