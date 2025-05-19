@@ -62,7 +62,7 @@ class DynamicMultinodeTester:
                 with Pool(processes=clients) as pool:
                     pool.map(process_task, tasks)
                 total_time = time.perf_counter() - start_time
-
+                active_servers = self.servers_manager.get_statistics()
                 latencies = list(self.latencies)
                 if latencies and total_time > 0:
                     avg_latency = sum(latencies) / len(latencies)
@@ -78,6 +78,7 @@ class DynamicMultinodeTester:
                     "avg_latency": avg_latency,
                     "throughput": throughput,
                     "total_time": total_time,
+                    "active_servers": active_servers
                 })
 
                 with self.lock:
@@ -101,26 +102,33 @@ class DynamicMultinodeTester:
         latencies = [s["avg_latency"] for s in self.test_stats]
         throughputs = [s["throughput"] for s in self.test_stats]
         total_times = [s["total_time"] for s in self.test_stats]
+        active_servers = [s["active_servers"] for s in self.test_stats]
 
         x = range(len(self.test_stats))
         plt.figure(figsize=(20, 6))
 
-        plt.subplot(1, 3, 1)
+        plt.subplot(2, 2, 1)
         plt.plot(x, latencies, color='skyblue', marker='o')
         plt.xticks(x, labels, rotation=45, ha="right")
         plt.title("Avg Latency (s)")
         plt.grid(True)
 
-        plt.subplot(1, 3, 2)
+        plt.subplot(2, 2, 2)
         plt.plot(x, throughputs, color='lightgreen', marker='o')
         plt.xticks(x, labels, rotation=45, ha="right")
         plt.title("Throughput (req/s)")
         plt.grid(True)
 
-        plt.subplot(1, 3, 3)
+        plt.subplot(2, 2, 3)
         plt.plot(x, total_times, color='salmon', marker='o')
         plt.xticks(x, labels, rotation=45, ha="right")
         plt.title("Total Time (s)")
+        plt.grid(True)
+
+        plt.subplot(2, 2, 4)
+        plt.plot(x, active_servers, color='mediumpurple', marker='o')
+        plt.xticks(x, labels, rotation=45, ha="right")
+        plt.title("Active Servers")
         plt.grid(True)
 
         plt.tight_layout()
@@ -133,5 +141,5 @@ if __name__ == "__main__":
     node_manager = DockerContainerManager()
     node_manager.run_rabbitmq()
     test = DynamicMultinodeTester()
-    test.run_stress_test([(10, 200), (100, 1000), (500, 10000), (100, 1000)])
+    test.run_stress_test([(10, 200), (10, 200), (100, 500),(100, 1000), (500, 10000), (500, 15000), (500, 5000), (100, 1000), (10, 200)])
     node_manager.stop_container('rabbitmq')

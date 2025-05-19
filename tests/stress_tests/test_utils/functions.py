@@ -10,14 +10,8 @@ def get_free_port():
 
 def service_work(client, requests_per_client):
     for i in range(requests_per_client):
-        if i % 2 == 0:
-            client.add_insult(f"insult{i}")
-        else:
-            client.get_all_insults()
+        client.add_insult(f"insult{i}")
 
 def filter_work(client, requests_per_client):
     for i in range(requests_per_client):
-        if i % 2 == 0:
-            client.submit_text("insult idiot retardet")
-        else:
-            client.get_results()
+        client.submit_text("insult idiot retardet")
